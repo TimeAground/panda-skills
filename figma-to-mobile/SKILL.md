@@ -4,104 +4,91 @@ description: >
   Convert Figma designs to mobile UI code.
   Supports Android (Jetpack Compose, XML) and iOS (SwiftUI, UIKit).
   Use when a user provides a Figma link and wants mobile layout code.
-  Extracts design tokens via Figma REST API and generates
-  production-ready code for the chosen platform and framework.
+  Extracts design tokens via Figma REST API, asks clarifying questions,
+  then generates production-ready code files.
 ---
 
 # Figma to Mobile
 
-Convert Figma designs to mobile UI code.
+Convert Figma designs to mobile UI code with interactive clarification.
 
-Supported output formats:
-- **Android**: Jetpack Compose (Kotlin) / XML Layout
-- **iOS**: SwiftUI / UIKit (Storyboard code or programmatic)
+Supported: Android Compose, Android XML, iOS SwiftUI, iOS UIKit.
 
 ## Prerequisites
 
-- `FIGMA_TOKEN` environment variable set with a Figma Personal Access Token
-- Python 3.8+ (for the fetch script)
-- `requests` Python package (`pip install requests`)
+- `FIGMA_TOKEN` environment variable set (Figma > Settings > Personal Access Tokens)
+- Python 3.8+ with `requests` package
 
 ## Workflow
 
-### Step 1: Get User Input
+### Step 1: Fetch & Analyze
 
-Ask the user for:
-1. **Figma link** — URL of a specific Frame or Component (not entire file)
-2. **Platform & format** — one of:
-   - Android Compose
-   - Android XML
-   - iOS SwiftUI
-   - iOS UIKit
-3. **Project context** (optional) — existing theme, design system, component library
+When user provides a Figma link:
 
-Example valid URLs:
-- `https://www.figma.com/design/ABC123/Project?node-id=100-200`
-- `https://www.figma.com/file/ABC123/Project?node-id=100:200`
+1. Run `scripts/figma_fetch.py "<url>"` to get design data
+2. Analyze the structure: identify sections, repeated patterns, component types
+3. Assess confidence for each structural decision
 
-### Step 2: Fetch Design Data
+### Step 2: Present Summary & Ask Questions
 
-Run the fetch script:
+Show a brief structure summary (tree format, 3-8 lines max).
+Then ask ONLY about things you are not confident about.
 
-```bash
-python3 scripts/figma_fetch.py "<figma_url>"
-```
+Rules for questions:
+- Max 3-5 questions per interaction
+- Each question gives concrete options with one-line pros/cons
+- Use natural language, no JSON or technical dumps
+- If structure is fully clear, skip questions and go to Step 3
 
-The script outputs simplified JSON containing for each element:
-- type, name, size (width x height)
-- position (x, y relative to parent)
-- fills (background colors), strokes (borders)
-- text content, font size, font weight, text color
-- layout mode (auto-layout direction, spacing, padding)
-- corner radius
-- children (nested)
+Common questions to ask:
+- "These N items look similar — dynamic list (RecyclerView/LazyColumn) or fixed layout?"
+- "Output format? XML / Compose / SwiftUI / UIKit"
+- "This icon area: single image asset or icon-on-colored-background combo?"
+- "Any custom components to use instead of system defaults? (e.g. custom Switch)"
+
+Do NOT ask about:
+- Color resource names (write hex directly)
+- String resource names (write strings directly)
+- Dimension resource names (write dp/sp directly)
+- Adapter implementation (do not generate Adapters)
 
 ### Step 3: Generate Code
 
-Read the appropriate reference file:
-- **Android Compose** → `references/compose-patterns.md`
-- **Android XML** → `references/xml-patterns.md`
-- **iOS SwiftUI** → `references/swiftui-patterns.md`
-- **iOS UIKit** → `references/uikit-patterns.md`
+After user confirms, generate code files.
 
-#### Universal Rules (all platforms)
+Output rules:
+- **Colors**: write hex directly (android:textColor="#0F0F0F" / Color(0xFF0F0F0F))
+- **Strings**: write text directly (android:text="通知设置")
+- **Dimensions**: write values directly (android:textSize="17sp")
+- **Images**: use @drawable/placeholder or Image("placeholder")
+- **Layout**: prefer ConstraintLayout for complex, LinearLayout for simple linear flows
+- **Lists**: output main layout + separate item layout file. Do NOT generate Adapter.
 
-1. **Figma type mapping** (see platform-specific reference for exact components):
-   - FRAME with auto-layout VERTICAL → vertical stack/list
-   - FRAME with auto-layout HORIZONTAL → horizontal stack/row
-   - FRAME without auto-layout → overlay/absolute container
-   - TEXT → text label
-   - RECTANGLE → view with background
-   - INSTANCE → expand as children
-   - GROUP → transparent container
+If multiple files are needed, output each with a clear filename header:
+```
+📄 activity_notification_settings.xml
+[code]
 
-2. **Design token conversion:**
-   - Colors: Figma RGBA (0-1) → platform hex format
-   - Font sizes: Figma px → sp (Android) / pt (iOS)
-   - Spacing/dimensions: Figma px → dp (Android) / pt (iOS)
-   - Corner radius: same conversion as spacing
+📄 item_expert_notification.xml
+[code]
+```
 
-3. **Code quality:**
-   - Use meaningful names from Figma layer names
-   - Add comments for major sections
-   - Generate compilable/buildable code
-   - Follow platform conventions and idioms
+Read platform-specific patterns from:
+- Android Compose → references/compose-patterns.md
+- Android XML → references/xml-patterns.md
+- iOS SwiftUI → references/swiftui-patterns.md
+- iOS UIKit → references/uikit-patterns.md
 
-4. **DO NOT:**
-   - Use absolute positioning (prefer relative/stack layouts)
-   - Hard-code user-visible strings
-   - Modify the Figma file in any way
+### Step 4: Review
 
-### Step 4: Present Results
-
-Show the generated code and ask:
-- Does it match the design?
-- Any components to adjust?
-- Want a different platform output for the same design?
+After showing code, ask briefly:
+- Matches the design?
+- Any adjustments needed?
+- Want the same design in a different format?
 
 ## Error Handling
 
-- FIGMA_TOKEN not set → tell user: Figma → Settings → Personal Access Tokens
-- Invalid URL → show example format
+- FIGMA_TOKEN not set → tell user: Figma > Settings > Personal Access Tokens
+- Invalid URL → show valid URL example
 - API error → show error message
-- Node too large (>200 children) → suggest selecting a smaller frame
+- Node too large (>200 children) → suggest a smaller frame
