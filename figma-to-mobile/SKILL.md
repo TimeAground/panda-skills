@@ -64,6 +64,12 @@ Output rules:
 - **Layout**: prefer ConstraintLayout for complex, LinearLayout for simple linear flows
 - **Lists**: output main layout + separate item layout file. Do NOT generate Adapter.
 
+Platform guidelines (follow strictly, do NOT need to read references for these):
+- **Android XML**: follow Material Design 3 specs. Prefer ConstraintLayout as default. Use 8dp grid. Minimum touch target 48dp. Use MaterialSwitch/MaterialCardView over legacy widgets.
+- **Android Compose**: follow Material3 composables. Use Modifier chains. LazyColumn for lists. Scaffold for page structure.
+- **iOS SwiftUI**: follow Apple HIG. Use NavigationStack, List, VStack/HStack/ZStack. Respect safe areas. Use system fonts/spacing.
+- **iOS UIKit**: follow Apple HIG. Use AutoLayout (NSLayoutConstraint or StackView). UITableView/UICollectionView for lists. Respect safe areas.
+
 If multiple files are needed, output each with a clear filename header:
 ```
 📄 activity_notification_settings.xml
@@ -88,7 +94,12 @@ After showing code, ask briefly:
 
 ## Error Handling
 
-- FIGMA_TOKEN not set → tell user: Figma > Settings > Personal Access Tokens
-- Invalid URL → show valid URL example
-- API error → show error message
-- Node too large (>200 children) → suggest a smaller frame
+- **FIGMA_TOKEN not set or invalid** → tell user:
+  1. Open Figma → click avatar (top-left) → Settings → Security → Personal Access Tokens
+  2. Click "Generate new token", set name and expiration
+  3. Copy the token (starts with `figd_`)
+  4. Provide it in chat, and the agent will configure it
+  If API returns 403/401, the token may have expired or been revoked. Ask user to regenerate.
+- **Invalid URL** → show valid URL example: `https://www.figma.com/design/<fileKey>/<name>?node-id=<id>`
+- **API error** → show error message, suggest checking network/proxy
+- **Node too large (>200 children)** → suggest selecting a smaller frame
