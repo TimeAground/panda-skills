@@ -20,11 +20,11 @@ When generating code, think about the **page-level architecture**, not just indi
 
 ### Multi-Tab Pages
 When a design shows **multiple tabs** (≥2 text labels acting as navigation):
-- Use `TabLayout` + `ViewPager2` (or legacy `ViewPager`) — this is the standard pattern
+- **Highly likely** `TabLayout` + `ViewPager2` — this is the standard pattern for tab switching
 - Do NOT use plain TextViews for tabs — they lack selection state, indicators, and swipe support
-- The content area below tabs should be a `FrameLayout` or `ViewPager2` container, NOT the final content directly
-- Each tab's content lives in its own **Fragment** with its own layout XML
-- Output: main layout (with TabLayout + container) + separate fragment layout(s) for each tab's content
+- The content area below tabs is **likely** a `ViewPager2` container, each tab's content in its own Fragment
+- Output: main layout (with TabLayout + ViewPager2) + separate fragment layout(s)
+- **Note**: This is a strong signal, not an absolute rule. If the design clearly shows a single static page with tab-like labels that are purely decorative, adjust accordingly. When unsure, ASK.
 
 ```xml
 <!-- Standard Tab + ViewPager2 structure -->
@@ -113,10 +113,10 @@ When a design shows **multiple tabs** (≥2 text labels acting as navigation):
 Use `MaterialButton` only for simple text-only buttons where its default styling is sufficient.
 
 ### List Item Height Alignment
-When a list item has a **left sidebar element** (like a time capsule/tag) and **right content area**:
-- Both sides should have **matching height** — use ConstraintLayout constraints to align top-to-top and bottom-to-bottom
-- Or set both to the same fixed height
-- Do NOT let one side be `wrap_content` while the other is fixed — they will look misaligned
+When a list item has a **left sidebar element** and **right content area**, observe the design data to decide alignment:
+- Look at **multiple items** in the design — if the left side height is consistent across items and doesn't change with right side content length, they are likely **equal height** (constrain top-to-top + bottom-to-bottom, or same fixed height)
+- If the left side height clearly varies with content, use `wrap_content` independently
+- **This is observation-based, not a fixed rule** — always check the actual data for each design
 
 ## ConstraintLayout Mapping
 
