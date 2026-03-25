@@ -223,6 +223,28 @@ Figma values often have excessive decimal places (e.g., 127.86dp, 7.63dp):
 - **Round sp to nearest 0.5** for font sizes (e.g., 15.27sp → 15sp)
 - Exception: if the exact value clearly maps to a standard size (e.g., 47.99 → 48dp), snap to that
 
+### Complex Illustrations — Export as Bitmap, Not Vector
+When a Figma node contains **gradients + boolean operations + multiple overlapping shapes** (e.g., character illustrations, mascots, complex logos):
+- Do NOT attempt to convert to Android Vector Drawable — it will lose visual fidelity (gradients, blend modes, boolean ops are poorly supported)
+- Export from Figma API as **PNG or WebP** at appropriate density (2x/3x)
+- Use `ImageView` with the exported bitmap
+- Signal: node tree has ELLIPSE/VECTOR with `gradient` fields, nested BOOLEAN_OPERATION, or opacity/blend effects
+
+### Multi-State Page Analysis
+When given **multiple Figma frames representing different states** of the same page:
+1. First identify which nodes are **shared** (identical across states) — these are static
+2. Then diff the remaining nodes to find **what changes** between states (color, text, visibility, border, opacity)
+3. For each changing property, annotate in the XML with a comment describing the state transition
+4. Prefer declarative state handling (selector drawables, alpha, state attributes) over imperative code (manual visibility toggles)
+5. Output a **state change summary table** after the XML for the developer to implement business logic
+
+### Disabled/Enabled State via Opacity
+When a View appears in two states where one has `opacity < 1` and the other has full opacity:
+- This is a **disabled/enabled** pattern
+- Map to `android:alpha` (0.3 = disabled, 1.0 = enabled)
+- Also set `android:clickable` and `android:enabled` accordingly
+- Do NOT use a separate drawable — alpha is sufficient
+
 ## ConstraintLayout Mapping
 
 ```xml
