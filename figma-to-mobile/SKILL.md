@@ -42,11 +42,21 @@ When user provides a Figma link:
 2. Analyze the structure: identify sections, repeated patterns, component types
 3. Note INSTANCE nodes — they indicate reusable components
 4. Note gradient/shadow data — flag for the user if complex
-5. **Page architecture analysis** (Android XML specific):
-   - Multiple tab labels → likely `TabLayout` + `ViewPager2`, content in Fragment layouts (strong signal, not absolute — ask if unsure)
-   - Navigation bar with back/close icon → `ImageView` (src + background), not FrameLayout wrapper
-   - Buttons with icon + text → prefer `LinearLayout` + `ImageView` + `TextView` over `MaterialButton` with `app:icon`
-   - List item with left sidebar + right content → observe multiple items to judge if equal-height or independent
+
+**Figma node interpretation (apply before generating any platform code):**
+- **Skip system chrome**: StatusBar, HomeIndicator, NavigationBar are iOS design placeholders — don't generate code for them. Also skip duplicate nodes at the same position (Figma artifacts)
+- **Container + icon = single view**: A FRAME (with background/cornerRadius) wrapping a small VECTOR/INSTANCE is one ImageView/Image, not nested layouts
+- **VECTOR/ELLIPSE compositions = single asset**: Multiple small VECTOR/ELLIPSE siblings inside a FRAME are pieces of one icon — output as a single image reference, not separate views
+- **RECTANGLE as background**: When a GROUP's first child is a RECTANGLE matching the GROUP's dimensions, it's a background shape, not a separate view
+- **GROUP vs FRAME**: FRAME with `layoutMode` maps to structured layouts (LinearLayout, HStack, etc.); GROUP without `layoutMode` uses absolute positioning — map to ConstraintLayout constraints or explicit offsets
+- **Round Figma decimals**: Round dp to nearest integer, sp to nearest 0.5. Snap near-standard values (e.g., 47.99 → 48dp)
+
+**Page architecture analysis (Android XML specific):**
+- Multiple tab labels → likely `TabLayout` + `ViewPager2`, content in Fragment layouts (strong signal, not absolute — ask if unsure)
+- Tab color differences between items → selected/unselected state, use `tabSelectedTextColor` / `tabTextColor`, not hardcoded per-tab colors
+- Navigation bar with back/close icon → `ImageView` (src + background), not FrameLayout wrapper
+- Buttons with icon + text → prefer `LinearLayout` + `ImageView` + `TextView` over `MaterialButton` with `app:icon`
+- List item with left sidebar + right content → observe multiple items to judge if equal-height or independent
 
 ### Step 2: Confirm & Clarify
 

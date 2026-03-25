@@ -118,6 +118,57 @@ When a list item has a **left sidebar element** and **right content area**, obse
 - If the left side height clearly varies with content, use `wrap_content` independently
 - **This is observation-based, not a fixed rule** — always check the actual data for each design
 
+## Figma Node Interpretation Rules
+
+These rules help correctly interpret Figma node structures when mapping to Android views.
+They are **observation heuristics**, not absolute rules — always verify against the actual design data.
+
+### System Components — Skip
+Nodes representing **iOS system chrome** should NOT generate Android code:
+- `StatusBar`, `HomeIndicator`, `NavigationBar` (by name)
+- These are Figma design placeholders for the system UI — Android handles them natively
+- Signal: INSTANCE nodes with names like "StatusBar", "HomeIndicator", or with well-known component IDs that appear at screen top (y≈0) or bottom (y≈screen height - small offset)
+- Also skip **duplicate nodes** — if the same component appears twice at the same position, only one is real (Figma artifact)
+
+### Container + Icon = Single ImageView
+When data shows a **FRAME** (with background color + cornerRadius) containing a single **INSTANCE** or **VECTOR** child that is clearly an icon:
+- This is one `ImageView` in code, not a nested layout
+- `android:background` = the container shape (circle, rounded rect, etc.)
+- `android:src` = the icon drawable
+- Typical signal: outer FRAME has cornerRadius ≥ 50% of size (circular), inner child is VECTOR/INSTANCE much smaller than container
+- Example from data: FRAME(32×32, #000000, cornerRadius=100) → INSTANCE(18×18) → VECTOR = one `ImageView`
+
+### VECTOR/ELLIPSE Compositions = Single Drawable
+When a FRAME contains **multiple VECTOR and/or ELLIPSE** nodes that together form a recognizable icon shape:
+- These are pieces of a single icon asset, NOT separate views
+- In code: one `ImageView` with `android:src="@drawable/placeholder"`
+- Signal: multiple small VECTOR/ELLIPSE siblings inside a FRAME, all with small sizes relative to parent, often overlapping
+- Example: play button icon = 2 VECTORs (triangle shape) + 1 ELLIPSE (circle outline) → one icon asset
+
+### RECTANGLE as Background
+When a GROUP's **first child** is a RECTANGLE with the **same dimensions** as the GROUP:
+- The RECTANGLE is a background shape, not an independent view
+- Map it to `android:background` on the parent container
+- Signal: RECTANGLE is first child, width≈GROUP width, height≈GROUP height
+- Example: GROUP(40×152) → first child RECTANGLE(40×152, #F3F3F4, cornerRadius=30) = background shape
+
+### GROUP vs FRAME Layout Strategy
+- **FRAME with `layoutMode`**: has Auto-layout → map to LinearLayout or ConstraintLayout chain (structured flow)
+- **GROUP without `layoutMode`**: no Auto-layout → children are positioned by absolute coordinates → use ConstraintLayout with constraints derived from x/y positions
+- When converting GROUP children positions to constraints, calculate relative offsets from the GROUP's origin
+
+### Tab Selected State
+When multiple Text nodes in a tab bar have **different textColors** (e.g., one is #0F0F0F, others are #858A99):
+- This indicates selected vs unselected state
+- Map to `TabLayout` attributes: `app:tabSelectedTextColor` for the active color, `app:tabTextColor` for inactive
+- Do NOT hardcode individual tab colors — the selection state is dynamic at runtime
+
+### Figma Decimal Precision → Android Rounding
+Figma values often have excessive decimal places (e.g., 127.86dp, 7.63dp):
+- **Round to nearest integer dp** for layout dimensions, margins, padding
+- **Round sp to nearest 0.5** for font sizes (e.g., 15.27sp → 15sp)
+- Exception: if the exact value clearly maps to a standard size (e.g., 47.99 → 48dp), snap to that
+
 ## ConstraintLayout Mapping
 
 ```xml
