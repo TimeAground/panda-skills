@@ -42,6 +42,12 @@ When user provides a Figma link:
 2. Analyze the structure: identify sections, repeated patterns, component types
 3. Note INSTANCE nodes — they indicate reusable components
 4. Note gradient/shadow data — flag for the user if complex
+5. **Page architecture analysis** (Android XML specific):
+   - Multiple tab labels → `TabLayout` + `ViewPager2`, content goes in Fragment layouts
+   - Navigation bar with back/close icon → `ImageView` (src + background), not FrameLayout wrapper
+   - Buttons with icon + text → prefer `LinearLayout` + `ImageView` + `TextView` over `MaterialButton` with `app:icon`
+   - List inside a tabbed page → output as Fragment layout, not directly in Activity layout
+   - Left sidebar + right content in list item → ensure both sides have matching height
 
 ### Step 2: Confirm & Clarify
 
