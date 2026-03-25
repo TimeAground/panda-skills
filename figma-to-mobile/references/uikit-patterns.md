@@ -1,96 +1,37 @@
-# UIKit Patterns Reference
+# UIKit Patterns — Figma to UIKit Mapping
 
-## Basic Mapping
+> Purpose: Map Figma properties to UIKit code.
+> This is a **mapping reference**, not a UIKit tutorial — the agent already knows UIKit conventions.
 
-### UIStackView Vertical
-```swift
-let stackView = UIStackView()
-stackView.axis = .vertical
-stackView.spacing = 8
-stackView.alignment = .fill
-stackView.distribution = .fill
-stackView.layoutMargins = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
-stackView.isLayoutMarginsRelativeArrangement = true
-```
+## Layout Selection Guide
 
-### UIStackView Horizontal
-```swift
-let stackView = UIStackView()
-stackView.axis = .horizontal
-stackView.spacing = 8
-stackView.alignment = .center
-```
+| Figma Structure | Recommended Approach |
+|---|---|
+| Simple vertical/horizontal stack | UIStackView |
+| Complex / relative positioning | Auto Layout (NSLayoutConstraint) |
+| Repeating similar items (≥3) | UITableView / UICollectionView |
+| Scrollable content | UIScrollView |
 
-### UIView (Container)
-```swift
-let container = UIView()
-container.backgroundColor = .white
-container.layer.cornerRadius = 12
-container.translatesAutoresizingMaskIntoConstraints = false
-NSLayoutConstraint.activate([
-    container.widthAnchor.constraint(equalToConstant: 351),
-    container.heightAnchor.constraint(equalToConstant: 210)
-])
-```
+## Auto-layout Mapping
 
-### UILabel
-```swift
-let label = UILabel()
-label.text = "Title"
-label.font = .systemFont(ofSize: 17, weight: .bold)
-label.textColor = UIColor(hex: "0F0F0F")
-```
+| Figma Property | UIKit Equivalent |
+|---|---|
+| layoutMode: VERTICAL | UIStackView axis=.vertical |
+| layoutMode: HORIZONTAL | UIStackView axis=.horizontal |
+| itemSpacing | stackView.spacing |
+| padding | layoutMargins + isLayoutMarginsRelativeArrangement |
+| primaryAxisAlignItems: CENTER | distribution = .equalCentering |
+| counterAxisAlignItems: CENTER | alignment = .center |
+| layoutGrow: 1 | setContentHuggingPriority(.defaultLow) |
+| primaryAxisSizingMode: FIXED | heightAnchor/widthAnchor constraint |
 
-### UIImageView
-```swift
-let imageView = UIImageView()
-imageView.contentMode = .scaleAspectFill
-imageView.clipsToBounds = true
-imageView.translatesAutoresizingMaskIntoConstraints = false
-NSLayoutConstraint.activate([
-    imageView.heightAnchor.constraint(equalToConstant: 200)
-])
-```
+## Size Conversion
 
-### UIButton
-```swift
-let button = UIButton(type: .system)
-button.setTitle("Button Text", for: .normal)
-button.setTitleColor(.white, for: .normal)
-button.titleLabel?.font = .systemFont(ofSize: 16)
-button.backgroundColor = UIColor(hex: "0158FF")
-button.layer.cornerRadius = 8
-button.translatesAutoresizingMaskIntoConstraints = false
-NSLayoutConstraint.activate([
-    button.heightAnchor.constraint(equalToConstant: 40)
-])
-```
+- Figma px → UIKit pt (1:1)
+- Font sizes: .systemFont(ofSize:) with pt values
 
-### UITextField
-```swift
-let textField = UITextField()
-textField.placeholder = "Placeholder"
-textField.font = .systemFont(ofSize: 14)
-textField.backgroundColor = UIColor(hex: "F7F7F7")
-textField.layer.cornerRadius = 8
-textField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 12, height: 0))
-textField.leftViewMode = .always
-```
+## Color Hex Extension (include once in generated code)
 
-### Card-like View
-```swift
-let card = UIView()
-card.backgroundColor = .white
-card.layer.cornerRadius = 12
-card.layer.shadowColor = UIColor.black.cgColor
-card.layer.shadowOpacity = 0.1
-card.layer.shadowRadius = 4
-card.layer.shadowOffset = CGSize(width: 0, height: 2)
-```
-
-## Color Conversion
-
-UIColor hex extension (include in generated code):
 ```swift
 extension UIColor {
     convenience init(hex: String) {
@@ -107,27 +48,36 @@ extension UIColor {
 }
 ```
 
-## Size Conversion
-- Figma px → UIKit pt (1:1)
-- Use CGFloat for all dimensions
-- Font sizes: .systemFont(ofSize:) with pt values
-
-## Auto-layout Mapping
-
-| Figma Property | UIKit Equivalent |
-|---|---|
-| layoutMode: VERTICAL | UIStackView axis=.vertical |
-| layoutMode: HORIZONTAL | UIStackView axis=.horizontal |
-| itemSpacing | stackView.spacing |
-| padding | layoutMargins + isLayoutMarginsRelativeArrangement |
-| primaryAxisAlignItems: CENTER | distribution = .equalCentering |
-| counterAxisAlignItems: CENTER | alignment = .center |
-| layoutGrow: 1 | setContentHuggingPriority(.defaultLow) |
-
 ## Layout Approach
 
-Prefer programmatic Auto Layout:
-1. Set translatesAutoresizingMaskIntoConstraints = false
-2. Use NSLayoutConstraint.activate([])
-3. Use UIStackView for linear layouts (reduces constraint count)
+1. Set `translatesAutoresizingMaskIntoConstraints = false`
+2. Use `NSLayoutConstraint.activate([])`
+3. Prefer UIStackView for linear layouts (reduces constraint count)
 4. Use direct constraints for complex/absolute positioning
+
+## Shadow Mapping
+
+```swift
+view.layer.shadowColor = UIColor(hex: "000000").cgColor
+view.layer.shadowOpacity = 0.1
+view.layer.shadowRadius = 4
+view.layer.shadowOffset = CGSize(width: 0, height: 2)
+```
+
+## Gradient Mapping
+
+```swift
+let gradientLayer = CAGradientLayer()
+gradientLayer.colors = [UIColor(hex: "FF6B6B").cgColor, UIColor(hex: "4ECDC4").cgColor]
+gradientLayer.startPoint = CGPoint(x: 0.5, y: 0)
+gradientLayer.endPoint = CGPoint(x: 0.5, y: 1)
+gradientLayer.frame = view.bounds
+view.layer.insertSublayer(gradientLayer, at: 0)
+```
+
+## Per-corner Radius
+
+```swift
+view.layer.cornerRadius = 12
+view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]  // top only
+```

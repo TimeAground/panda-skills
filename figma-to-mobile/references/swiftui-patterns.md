@@ -1,98 +1,39 @@
-# SwiftUI Patterns Reference
+# SwiftUI Patterns — Figma to SwiftUI Mapping
 
-## Basic Mapping
+> Purpose: Map Figma properties to SwiftUI code.
+> This is a **mapping reference**, not a SwiftUI tutorial — the agent already knows SwiftUI conventions.
 
-### VStack (Vertical Layout)
-```swift
-VStack(alignment: .leading, spacing: 8) {
-    // children
-}
-.padding(.horizontal, 16)
-.padding(.vertical, 12)
-```
+## Layout Selection Guide
 
-### HStack (Horizontal Layout)
-```swift
-HStack(spacing: 8) {
-    // children
-}
-```
+| Figma Structure | Recommended View |
+|---|---|
+| Vertical stack | VStack |
+| Horizontal stack | HStack |
+| Overlapping / z-stacking | ZStack |
+| Repeating similar items (≥3) | List / LazyVStack / LazyHStack |
+| Page with navigation bar | NavigationStack + .navigationTitle |
+| Scrollable content | ScrollView |
 
-### ZStack (Overlay)
-```swift
-ZStack {
-    // children (back to front)
-}
-.frame(width: 351, height: 210)
-.background(Color.white)
-.cornerRadius(12)
-```
+## Auto-layout Mapping
 
-### Text
-```swift
-Text("Title")
-    .font(.system(size: 17, weight: .bold))
-    .foregroundColor(Color(hex: "0F0F0F"))
-```
+| Figma Property | SwiftUI Equivalent |
+|---|---|
+| layoutMode: VERTICAL | VStack |
+| layoutMode: HORIZONTAL | HStack |
+| itemSpacing | spacing: parameter |
+| padding* | .padding() modifiers |
+| primaryAxisAlignItems: CENTER | alignment parameter + Spacer() |
+| counterAxisAlignItems: CENTER | alignment: .center |
+| layoutGrow: 1 | .frame(maxWidth: .infinity) or Spacer() |
+| primaryAxisSizingMode: FIXED | .frame(height/width: X) |
 
-### Image Placeholder
-```swift
-Image("placeholder")
-    .resizable()
-    .aspectRatio(contentMode: .fill)
-    .frame(maxWidth: .infinity)
-    .frame(height: 200)
-    .clipped()
-```
+## Size Conversion
 
-### Button
-```swift
-Button(action: { /* TODO */ }) {
-    Text("Button Text")
-        .font(.system(size: 16))
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: 40)
-        .background(Color(hex: "0158FF"))
-        .cornerRadius(8)
-}
-```
+- Figma px → SwiftUI pt (1:1)
+- Font sizes: .system(size:) with pt values
 
-### TextField / Input
-```swift
-TextField("Placeholder", text: $inputText)
-    .padding(12)
-    .background(Color(hex: "F7F7F7"))
-    .cornerRadius(8)
-```
+## Color Hex Extension (include once in generated code)
 
-### Card-like Container
-```swift
-VStack {
-    // content
-}
-.padding(16)
-.background(Color.white)
-.cornerRadius(12)
-.shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-```
-
-### ScrollView
-```swift
-ScrollView {
-    VStack(spacing: 12) {
-        // scrollable content
-    }
-}
-```
-
-## Color Conversion
-
-Figma RGBA (0-1) to SwiftUI:
-- Use Color(red:green:blue:opacity:) or a hex extension
-- Example: r=0.0863 g=0.3412 b=1.0 → Color(hex: "1657FF")
-
-Hex extension (include in generated code):
 ```swift
 extension Color {
     init(hex: String) {
@@ -108,20 +49,29 @@ extension Color {
 }
 ```
 
-## Size Conversion
+## Shadow Mapping
 
-- Figma px → SwiftUI pt (1:1 on standard density)
-- Use CGFloat values
-- Font sizes: use .system(size:) with pt values
+```swift
+.shadow(color: Color(hex: "000000").opacity(0.1), radius: 4, x: 0, y: 2)
+```
 
-## Auto-layout Mapping
+## Gradient Mapping
 
-| Figma Property | SwiftUI Equivalent |
-|---|---|
-| layoutMode: VERTICAL | VStack |
-| layoutMode: HORIZONTAL | HStack |
-| itemSpacing | spacing: parameter |
-| paddingLeft/Right/Top/Bottom | .padding() modifiers |
-| primaryAxisAlignItems: CENTER | alignment parameter + Spacer() |
-| counterAxisAlignItems: CENTER | alignment: .center |
-| layoutGrow: 1 | .frame(maxWidth: .infinity) or Spacer() |
+```swift
+LinearGradient(
+    colors: [Color(hex: "FF6B6B"), Color(hex: "4ECDC4")],
+    startPoint: .top,
+    endPoint: .bottom
+)
+```
+
+## Per-corner Radius (iOS 16+)
+
+```swift
+.clipShape(UnevenRoundedRectangle(
+    topLeadingRadius: 12,
+    topTrailingRadius: 12,
+    bottomLeadingRadius: 0,
+    bottomTrailingRadius: 0
+))
+```

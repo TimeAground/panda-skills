@@ -19,6 +19,19 @@ Supported: Android Compose, Android XML, iOS SwiftUI, iOS UIKit.
 - `FIGMA_TOKEN` environment variable set (Figma > Settings > Personal Access Tokens)
 - Python 3.8+ with `requests` package
 
+## Trigger & Input
+
+This skill activates when a user provides a Figma link.
+
+The user may also include **inline hints** alongside the link, such as:
+- Target platform: "Android XML", "Compose", "SwiftUI", "UIKit"
+- Layout preferences: "use ConstraintLayout", "prefer StackView"
+- Component notes: "the switch is our custom CompactSwitch", "this is a dynamic list"
+- Any other context about the design
+
+**If the user provides hints, respect them and skip the corresponding questions.**
+For example, if the user says "Android XML, the 3 cards are a RecyclerView list", do NOT ask about output format or whether the cards are dynamic/static.
+
 ## Workflow
 
 ### Step 1: Fetch & Analyze
@@ -27,48 +40,66 @@ When user provides a Figma link:
 
 1. Run `scripts/figma_fetch.py "<url>"` to get design data
 2. Analyze the structure: identify sections, repeated patterns, component types
-3. Assess confidence for each structural decision
+3. Note INSTANCE nodes — they indicate reusable components
+4. Note gradient/shadow data — flag for the user if complex
 
-### Step 2: Present Summary & Ask Questions
+### Step 2: Confirm & Clarify
 
-Show a brief structure summary (tree format, 3-8 lines max).
-Then ask ONLY about things you are not confident about.
+**Question priority (strict order — ask earlier questions first):**
 
-Rules for questions:
-- Max 3-5 questions per interaction
+1. **Output format** (MUST ask first unless user already specified)
+   → Android XML / Compose / SwiftUI / UIKit
+   This determines all subsequent analysis phrasing and code output.
+
+2. **Structural ambiguities** (only ask what you're genuinely unsure about)
+   → "These N items look similar — dynamic list or fixed layout?"
+   → "This area: single image asset or icon-on-background combo?"
+
+3. **Component choices** (only if platform-relevant)
+   → "Any custom components to use? (otherwise I'll use platform defaults)"
+
+**Rules for questions:**
+- Skip any question the user already answered via inline hints
+- Max 3-5 questions total, fewer is better
 - Each question gives concrete options with one-line pros/cons
+- Every question includes an open option: "or tell me more about this"
 - Use natural language, no JSON or technical dumps
-- If structure is fully clear, skip questions and go to Step 3
+- If everything is clear (user gave full context + simple structure), skip Step 2 entirely
 
-Common questions to ask:
-- "These N items look similar — dynamic list (RecyclerView/LazyColumn) or fixed layout?"
-- "Output format? XML / Compose / SwiftUI / UIKit"
-- "This icon area: single image asset or icon-on-colored-background combo?"
-- "Any custom components to use instead of system defaults? (e.g. custom Switch)"
-
-Do NOT ask about:
-- Color resource names (write hex directly)
-- String resource names (write strings directly)
-- Dimension resource names (write dp/sp directly)
-- Adapter implementation (do not generate Adapters)
+**Confidence guide — when to ask vs. when to just generate:**
+- ≥3 sibling nodes with similar structure → likely a list → ASK (dynamic vs static)
+- INSTANCE nodes sharing same componentId → reusable component → MENTION but can default
+- Single clear hierarchy, no ambiguity → high confidence → SKIP questions, go to Step 3
+- Gradient/complex shadow in design → MENTION in summary ("I see a gradient here, I'll approximate it as X")
 
 ### Step 3: Generate Code
 
-After user confirms, generate code files.
+After user confirms (or if no questions needed), generate code files.
 
-Output rules:
-- **Colors**: write hex directly (android:textColor="#0F0F0F" / Color(0xFF0F0F0F))
-- **Strings**: write text directly (android:text="通知设置")
-- **Dimensions**: write values directly (android:textSize="17sp")
-- **Images**: use @drawable/placeholder or Image("placeholder")
-- **Layout**: prefer ConstraintLayout for complex, LinearLayout for simple linear flows
-- **Lists**: output main layout + separate item layout file. Do NOT generate Adapter.
+**Output rules (absolute — never break these):**
+- **Colors**: write hex directly (`android:textColor="#0F0F0F"` / `Color(0xFF0F0F0F)`)
+- **Strings**: write text directly (`android:text="通知设置"`)
+- **Dimensions**: write values directly (`android:textSize="17sp"`)
+- **Images**: use `@drawable/placeholder` or `Image("placeholder")`
+- **Lists**: output main layout + separate item layout file. Do NOT generate Adapter/ViewHolder.
+- **No resource references**: no `@color/`, `@string/`, `@dimen/` — everything hardcoded for instant preview
 
-Platform guidelines (follow strictly, do NOT need to read references for these):
-- **Android XML**: follow Material Design 3 specs. Prefer ConstraintLayout as default. Use 8dp grid. Minimum touch target 48dp. Use MaterialSwitch/MaterialCardView over legacy widgets.
-- **Android Compose**: follow Material3 composables. Use Modifier chains. LazyColumn for lists. Scaffold for page structure.
-- **iOS SwiftUI**: follow Apple HIG. Use NavigationStack, List, VStack/HStack/ZStack. Respect safe areas. Use system fonts/spacing.
-- **iOS UIKit**: follow Apple HIG. Use AutoLayout (NSLayoutConstraint or StackView). UITableView/UICollectionView for lists. Respect safe areas.
+**Platform guidelines (the agent already knows these — this is a reminder to follow them strictly):**
+- **Android XML**: Material Design 3. ConstraintLayout as default for any non-trivial layout. 8dp grid. Min touch target 48dp. MaterialCardView/MaterialSwitch over legacy.
+- **Android Compose**: Material3 composables. Modifier chains. LazyColumn for lists. Scaffold for pages.
+- **iOS SwiftUI**: Apple HIG. NavigationStack, List, VStack/HStack/ZStack. Safe areas. System fonts.
+- **iOS UIKit**: Apple HIG. AutoLayout (NSLayoutConstraint or StackView). UITableView/UICollectionView for lists. Safe areas.
+
+**Handling special visual properties:**
+- **Gradients**: generate platform-appropriate gradient code (GradientDrawable / Brush.linearGradient / LinearGradient / CAGradientLayer). If gradient is complex, add a comment noting it may need visual tuning.
+- **Shadows**: use platform shadow APIs. Note if the design shadow differs from default elevation shadow.
+- **Per-corner radius**: use platform-specific per-corner APIs when radii differ.
+
+Read platform-specific mapping details from:
+- Android Compose → references/compose-patterns.md
+- Android XML → references/xml-patterns.md
+- iOS SwiftUI → references/swiftui-patterns.md
+- iOS UIKit → references/uikit-patterns.md
 
 If multiple files are needed, output each with a clear filename header:
 ```
@@ -79,18 +110,19 @@ If multiple files are needed, output each with a clear filename header:
 [code]
 ```
 
-Read platform-specific patterns from:
-- Android Compose → references/compose-patterns.md
-- Android XML → references/xml-patterns.md
-- iOS SwiftUI → references/swiftui-patterns.md
-- iOS UIKit → references/uikit-patterns.md
-
-### Step 4: Review
+### Step 4: Iterate
 
 After showing code, ask briefly:
-- Matches the design?
-- Any adjustments needed?
-- Want the same design in a different format?
+> Matches the design? Any adjustments?
+
+**The user can then give feedback to refine the output.** Common iterations:
+- "间距大了" → adjust specific spacing
+- "Switch 换成我们的 CustomSwitch" → swap component
+- "把标题栏去掉" → remove section
+- "换成 Compose 版本" → regenerate in different format
+- "颜色不对，这里应该是 #333333" → fix specific values
+
+Continue iterating until the user is satisfied. Each round only regenerates the changed parts, not the entire file (unless the user asks for full regeneration).
 
 ## Error Handling
 
@@ -103,3 +135,4 @@ After showing code, ask briefly:
 - **Invalid URL** → show valid URL example: `https://www.figma.com/design/<fileKey>/<name>?node-id=<id>`
 - **API error** → show error message, suggest checking network/proxy
 - **Node too large (>200 children)** → suggest selecting a smaller frame
+- **Depth auto-increased** → the script auto-retries with deeper depth if it detects truncated children. Inform user if this happens ("I needed to fetch deeper to get all details").

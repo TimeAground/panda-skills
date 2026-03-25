@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch and simplify Figma node data for Android code generation."""
+"""Fetch and simplify Figma node data for mobile code generation."""
 
 import json
 import os
@@ -25,7 +25,7 @@ def parse_figma_url(url: str):
 
 
 def rgba_to_hex(color: dict) -> str:
-    """Convert Figma RGBA (0-1) to Android hex #AARRGGBB."""
+    """Convert Figma RGBA (0-1) to hex #RRGGBB or #AARRGGBB."""
     r = int(color.get("r", 0) * 255)
     g = int(color.get("g", 0) * 255)
     b = int(color.get("b", 0) * 255)
@@ -34,33 +34,88 @@ def rgba_to_hex(color: dict) -> str:
         return f"#{r:02X}{g:02X}{b:02X}"
     return f"#{a:02X}{r:02X}{g:02X}{b:02X}"
 
+def extract_effects(node: dict) -> list:
+    """Extract shadow and blur effects from a node."""
+    effects = node.get("effects", [])
+    result = []
+    for effect in effects:
+        if not effect.get("visible", True):
+            continue
+        etype = effect.get("type")
+        if etype in ("DROP_SHADOW", "INNER_SHADOW"):
+            shadow = {"type": etype.lower().replace("_", "-")}
+            color = effect.get("color")
+            if color:
+                shadow["color"] = rgba_to_hex(color)
+            offset = effect.get("offset", {})
+            shadow["offsetX"] = offset.get("x", 0)
+            shadow["offsetY"] = offset.get("y", 0)
+            shadow["radius"] = effect.get("radius", 0)
+            shadow["spread"] = effect.get("spread", 0)
+            result.append(shadow)
+        elif etype == "LAYER_BLUR":
+            result.append({"type": "blur", "radius": effect.get("radius", 0)})
+    return result
+
+
+def extract_fills(fills: list) -> dict:
+    """Extract fill info: solid color, image, or gradient."""
+    result = {}
+    for fill in fills:
+        if not fill.get("visible", True):
+            continue
+        ftype = fill.get("type")
+        if ftype == "SOLID":
+            result["backgroundColor"] = rgba_to_hex(fill.get("color", {}))
+            break
+        elif ftype == "IMAGE":
+            result["hasImage"] = True
+            break
+        elif ftype in ("GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"):
+            grad = {"type": ftype}
+            stops = fill.get("gradientStops", [])
+            if stops:
+                grad["stops"] = [
+                    {"color": rgba_to_hex(s.get("color", {})), "position": round(s.get("position", 0), 3)}
+                    for s in stops
+                ]
+            result["gradient"] = grad
+            break
+    return result
 
 def simplify_node(node: dict, parent_pos: dict = None) -> dict:
     """Simplify a Figma node to only the info needed for code generation."""
     bbox = node.get("absoluteBoundingBox", {})
+    node_type = node.get("type")
     result = {
-        "type": node.get("type"),
+        "type": node_type,
         "name": node.get("name"),
         "width": bbox.get("width"),
         "height": bbox.get("height"),
     }
+
+    # Component instance detection
+    if node_type == "INSTANCE":
+        comp_id = node.get("componentId")
+        if comp_id:
+            result["componentId"] = comp_id
 
     # Relative position
     if parent_pos and bbox:
         result["x"] = round(bbox.get("x", 0) - parent_pos.get("x", 0), 1)
         result["y"] = round(bbox.get("y", 0) - parent_pos.get("y", 0), 1)
 
-    # Background color
+    # Fills (background color, image, or gradient)
     fills = node.get("fills", [])
-    for fill in fills:
-        if fill.get("type") == "SOLID" and fill.get("visible", True):
-            result["backgroundColor"] = rgba_to_hex(fill.get("color", {}))
-            break
-        elif fill.get("type") == "IMAGE":
-            result["hasImage"] = True
-            break
+    fill_info = extract_fills(fills)
+    result.update(fill_info)
 
-    # Border
+    # Effects (shadows, blur)
+    effects = extract_effects(node)
+    if effects:
+        result["effects"] = effects
+
+    # Border / strokes
     strokes = node.get("strokes", [])
     for stroke in strokes:
         if stroke.get("type") == "SOLID" and stroke.get("visible", True):
@@ -68,41 +123,61 @@ def simplify_node(node: dict, parent_pos: dict = None) -> dict:
             result["borderWidth"] = node.get("strokeWeight", 1)
             break
 
-    # Corner radius
+    # Corner radius (uniform or per-corner)
     cr = node.get("cornerRadius")
     if cr and cr > 0:
         result["cornerRadius"] = cr
+    else:
+        radii = node.get("rectangleCornerRadii")
+        if radii and any(r > 0 for r in radii):
+            result["cornerRadii"] = radii  # [topLeft, topRight, bottomRight, bottomLeft]
 
     # Text properties
-    if node.get("type") == "TEXT":
+    if node_type == "TEXT":
         result["text"] = node.get("characters", "")
         style = node.get("style", {})
         if style:
             result["fontSize"] = style.get("fontSize")
             result["fontWeight"] = style.get("fontWeight")
+            result["fontFamily"] = style.get("fontFamily")
             result["textAlignHorizontal"] = style.get("textAlignHorizontal")
+            result["lineHeightPx"] = style.get("lineHeightPx")
+            result["letterSpacing"] = style.get("letterSpacing")
         # Text color from fills
         for fill in fills:
-            if fill.get("type") == "SOLID":
+            if fill.get("type") == "SOLID" and fill.get("visible", True):
                 result["textColor"] = rgba_to_hex(fill.get("color", {}))
                 break
 
     # Auto-layout
     layout_mode = node.get("layoutMode")
     if layout_mode:
-        result["layoutMode"] = layout_mode  # VERTICAL or HORIZONTAL
+        result["layoutMode"] = layout_mode
         result["itemSpacing"] = node.get("itemSpacing", 0)
         result["paddingLeft"] = node.get("paddingLeft", 0)
         result["paddingRight"] = node.get("paddingRight", 0)
         result["paddingTop"] = node.get("paddingTop", 0)
         result["paddingBottom"] = node.get("paddingBottom", 0)
-        result["primaryAxisAlignItems"] = node.get("primaryAxisAlignItems")
-        result["counterAxisAlignItems"] = node.get("counterAxisAlignItems")
+        paa = node.get("primaryAxisAlignItems")
+        if paa:
+            result["primaryAxisAlignItems"] = paa
+        caa = node.get("counterAxisAlignItems")
+        if caa:
+            result["counterAxisAlignItems"] = caa
+        pss = node.get("primaryAxisSizingMode")
+        if pss:
+            result["primaryAxisSizingMode"] = pss
+        css = node.get("counterAxisSizingMode")
+        if css:
+            result["counterAxisSizingMode"] = css
+        lg = node.get("layoutGrow")
+        if lg:
+            result["layoutGrow"] = lg
 
     # Opacity
     opacity = node.get("opacity")
     if opacity is not None and opacity < 1:
-        result["opacity"] = opacity
+        result["opacity"] = round(opacity, 3)
 
     # Visibility
     if not node.get("visible", True):
@@ -120,9 +195,25 @@ def simplify_node(node: dict, parent_pos: dict = None) -> dict:
 
     return result
 
+def has_truncated_children(node: dict) -> bool:
+    """Check if any node looks like it should have children but doesn't.
+    Heuristic: FRAME/GROUP/INSTANCE/COMPONENT with no children but non-trivial size."""
+    ntype = node.get("type")
+    children = node.get("children", [])
+    if ntype in ("FRAME", "GROUP", "INSTANCE", "COMPONENT", "COMPONENT_SET") and not children:
+        bbox = node.get("absoluteBoundingBox", {})
+        w = bbox.get("width", 0)
+        h = bbox.get("height", 0)
+        if w > 10 and h > 10:
+            return True
+    for child in children:
+        if has_truncated_children(child):
+            return True
+    return False
+
 
 def fetch_node(file_key: str, node_id: str, token: str, depth: int = 5) -> dict:
-    """Fetch a node from Figma API."""
+    """Fetch a node from Figma API with adaptive depth."""
     api_node_id = node_id.replace(":", "-")
     url = f"https://api.figma.com/v1/files/{file_key}/nodes?ids={api_node_id}&depth={depth}"
     headers = {"X-Figma-Token": token}
@@ -137,7 +228,15 @@ def fetch_node(file_key: str, node_id: str, token: str, depth: int = 5) -> dict:
     if not node_data:
         raise Exception(f"Node {node_id} not found in response")
 
-    return node_data["document"]
+    document = node_data["document"]
+
+    # Adaptive depth: if children seem truncated, retry with deeper depth
+    if depth < 15 and has_truncated_children(document):
+        new_depth = min(depth + 5, 15)
+        print(f"Depth {depth} may be insufficient, retrying with depth={new_depth}...", file=sys.stderr)
+        return fetch_node(file_key, node_id, token, new_depth)
+
+    return document
 
 
 def main():
@@ -155,7 +254,7 @@ def main():
     token = os.environ.get("FIGMA_TOKEN")
     if not token:
         print("ERROR: FIGMA_TOKEN environment variable not set.")
-        print("Get your token: Figma -> Settings -> Personal Access Tokens")
+        print("Get your token: Figma > Settings > Security > Personal Access Tokens")
         sys.exit(1)
 
     file_key, node_id = parse_figma_url(url)
@@ -167,7 +266,7 @@ def main():
         print("Open a specific frame in Figma and copy the URL.")
         sys.exit(1)
 
-    print(f"Fetching node {node_id} from file {file_key}...", file=sys.stderr)
+    print(f"Fetching node {node_id} from file {file_key} (depth={depth})...", file=sys.stderr)
     raw_node = fetch_node(file_key, node_id, token, depth)
     simplified = simplify_node(raw_node)
 

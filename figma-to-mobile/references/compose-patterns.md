@@ -1,112 +1,18 @@
-# Compose Patterns Reference
+# Compose Patterns — Figma to Jetpack Compose Mapping
 
-## Basic Mapping
+> Purpose: Map Figma properties to Jetpack Compose code.
+> This is a **mapping reference**, not a Compose tutorial — the agent already knows Compose conventions.
 
-### Column (Vertical Layout)
-```kotlin
-Column(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 12.dp),
-    verticalArrangement = Arrangement.spacedBy(8.dp)
-) {
-    // children
-}
-```
+## Layout Selection Guide
 
-### Row (Horizontal Layout)
-```kotlin
-Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(8.dp),
-    verticalAlignment = Alignment.CenterVertically
-) {
-    // children
-}
-```
-
-### Box (Overlay/Absolute)
-```kotlin
-Box(
-    modifier = Modifier
-        .size(width = 351.dp, height = 210.dp)
-        .background(Color(0xFFFFFFFF), RoundedCornerShape(12.dp))
-) {
-    // children
-}
-```
-
-### Text
-```kotlin
-Text(
-    text = "Title",
-    fontSize = 17.sp,
-    fontWeight = FontWeight.Bold,
-    color = Color(0xFF0F0F0F)
-)
-```
-
-### Image Placeholder
-```kotlin
-Image(
-    painter = painterResource(id = R.drawable.placeholder),
-    contentDescription = "description",
-    modifier = Modifier
-        .fillMaxWidth()
-        .height(200.dp),
-    contentScale = ContentScale.Crop
-)
-```
-
-### Button
-```kotlin
-Button(
-    onClick = { /* TODO */ },
-    modifier = Modifier
-        .fillMaxWidth()
-        .height(40.dp),
-    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0158FF)),
-    shape = RoundedCornerShape(8.dp)
-) {
-    Text("Button Text", color = Color.White, fontSize = 16.sp)
-}
-```
-
-### TextField / Input
-```kotlin
-OutlinedTextField(
-    value = "",
-    onValueChange = { /* TODO */ },
-    placeholder = { Text("Placeholder") },
-    modifier = Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(8.dp)
-)
-```
-
-### Card
-```kotlin
-Card(
-    modifier = Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(12.dp),
-    colors = CardDefaults.cardColors(containerColor = Color.White),
-    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-) {
-    // content
-}
-```
-
-## Color Conversion
-
-Figma color (r, g, b, a) where values are 0.0-1.0:
-- Convert to Android: Color(0xAARRGGBB)
-- Formula: each channel = (int)(value * 255)
-- Example: r=0.0863, g=0.3412, b=1.0, a=1.0 → Color(0xFF1657FF)
-
-## Size Conversion
-
-- Figma px → Compose dp (1:1 for standard density)
-- Figma font px → Compose sp (1:1)
-- Use .dp for dimensions, .sp for text sizes
+| Figma Structure | Recommended Composable |
+|---|---|
+| Vertical stack | Column |
+| Horizontal stack | Row |
+| Overlapping / z-stacking | Box |
+| Repeating similar items (≥3) | LazyColumn / LazyRow |
+| Page structure with top/bottom bars | Scaffold |
+| Complex relative positioning | Box with Modifier.align / offset |
 
 ## Auto-layout Mapping
 
@@ -115,7 +21,53 @@ Figma color (r, g, b, a) where values are 0.0-1.0:
 | layoutMode: VERTICAL | Column |
 | layoutMode: HORIZONTAL | Row |
 | itemSpacing | Arrangement.spacedBy(X.dp) |
-| paddingLeft/Right/Top/Bottom | Modifier.padding() |
+| padding* | Modifier.padding() |
 | primaryAxisAlignItems: CENTER | verticalArrangement = Arrangement.Center |
 | counterAxisAlignItems: CENTER | horizontalAlignment = Alignment.CenterHorizontally |
 | layoutGrow: 1 | Modifier.weight(1f) |
+| primaryAxisSizingMode: FIXED | Modifier.height/width(X.dp) |
+| counterAxisSizingMode: AUTO | wrapContentWidth/Height |
+
+## Size Conversion
+
+- Figma px → Compose .dp (1:1)
+- Figma font px → Compose .sp (1:1)
+
+## Shadow Mapping
+
+```kotlin
+// Elevation shadow
+Card(elevation = CardDefaults.cardElevation(defaultElevation = 4.dp))
+
+// Custom shadow (Compose 1.6+)
+Modifier.shadow(
+    elevation = 4.dp,
+    shape = RoundedCornerShape(12.dp),
+    ambientColor = Color(0x1A000000),
+    spotColor = Color(0x33000000)
+)
+```
+
+## Gradient Mapping
+
+```kotlin
+// Linear gradient
+Modifier.background(
+    Brush.linearGradient(
+        colors = listOf(Color(0xFFFF6B6B), Color(0xFF4ECDC4)),
+        start = Offset(0f, 0f),
+        end = Offset(0f, Float.POSITIVE_INFINITY)
+    )
+)
+```
+
+## Per-corner Radius
+
+```kotlin
+RoundedCornerShape(
+    topStart = 12.dp,
+    topEnd = 12.dp,
+    bottomEnd = 0.dp,
+    bottomStart = 0.dp
+)
+```
