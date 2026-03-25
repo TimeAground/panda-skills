@@ -117,6 +117,55 @@ Use `MaterialButton` only for simple text-only buttons where its default styling
 - `MaterialSwitch` (`com.google.android.material.materialswitch.MaterialSwitch`) can have display issues depending on Material theme configuration
 - If the design shows a custom-styled toggle (non-standard colors/shape), `SwitchCompat` with custom `thumb` and `track` drawables is easier to control
 
+### Multi-State Views — Use Selector Drawables
+When the same View has two or more visual states (selected/unselected, enabled/disabled, pressed/normal):
+- **Use `selector` drawable** to combine states into one resource, NOT separate drawables toggled in code
+- Parent View state propagates to children via `android:duplicateParentState="true"` — set state on parent, children auto-switch
+- Common state attributes: `state_selected`, `state_activated`, `state_pressed`, `state_enabled`
+
+```xml
+<!-- drawable/bg_gender_card_selector.xml -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:drawable="@drawable/bg_gender_card_selected" />
+    <item android:drawable="@drawable/bg_gender_card_unselected" />
+</selector>
+
+<!-- drawable/ic_check_selector.xml (controls visibility via alpha) -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:drawable="@drawable/ic_check_selected" />
+    <item android:drawable="@android:color/transparent" />
+</selector>
+```
+
+In code, just call `cardFemale.setSelected(true)` and all children with `duplicateParentState` follow.
+
+### Card/Container Internals — Prefer ConstraintLayout over FrameLayout
+When a card or container has multiple children that need positioning (icon at top-right, image centered, text at bottom):
+- Use `ConstraintLayout` as the card root — flatter, more efficient, more precise
+- `FrameLayout` is only appropriate when children truly just stack/overlap without relative positioning
+
+### Input Fields vs Display Fields
+Figma cannot distinguish between an `EditText` and a `TextView` — both appear as RECTANGLE + TEXT in the design data.
+- **If the text content looks like a placeholder** ("选择你的生日", "请输入姓名", etc.) and the design shows a text input style (border + single line + hint-colored text), it's likely an **EditText**
+- **ASK the user if unsure** — this is a functional decision that cannot be reliably determined from design data alone
+- When generating EditText: use `android:hint` instead of `android:text`, set `android:inputType` appropriately
+
+```xml
+<!-- Input field example -->
+<EditText
+    android:id="@+id/etNickname"
+    android:layout_width="295dp"
+    android:layout_height="48dp"
+    android:background="@drawable/bg_input"
+    android:paddingStart="12dp"
+    android:hint="请输入昵称"
+    android:textColorHint="#B8B8B8"
+    android:textSize="15sp"
+    android:textColor="#0F0F0F"
+    android:inputType="text"
+    android:maxLines="1" />
+```
+
 ### List Item Height Alignment
 When a list item has a **left sidebar element** and **right content area**, observe the design data to decide alignment:
 - Look at **multiple items** in the design — if the left side height is consistent across items and doesn't change with right side content length, they are likely **equal height** (constrain top-to-top + bottom-to-bottom, or same fixed height)
