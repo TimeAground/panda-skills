@@ -112,6 +112,11 @@ When a design shows **multiple tabs** (≥2 text labels acting as navigation):
 
 Use `MaterialButton` only for simple text-only buttons where its default styling is sufficient.
 
+### Switch / Toggle
+- **Prefer `SwitchCompat`** (`androidx.appcompat.widget.SwitchCompat`) over `MaterialSwitch` — more reliable rendering across API levels and themes
+- `MaterialSwitch` (`com.google.android.material.materialswitch.MaterialSwitch`) can have display issues depending on Material theme configuration
+- If the design shows a custom-styled toggle (non-standard colors/shape), `SwitchCompat` with custom `thumb` and `track` drawables is easier to control
+
 ### List Item Height Alignment
 When a list item has a **left sidebar element** and **right content area**, observe the design data to decide alignment:
 - Look at **multiple items** in the design — if the left side height is consistent across items and doesn't change with right side content length, they are likely **equal height** (constrain top-to-top + bottom-to-bottom, or same fixed height)
