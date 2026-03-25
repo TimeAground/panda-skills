@@ -57,6 +57,33 @@ references 文件是 **Figma 属性→代码属性的映射表**：
 | Phase | 内容 | 状态 |
 |-------|------|------|
 | 1 | Skill 交互式确认流程 | ✅ v0.3 |
+| 1.5 | 资源生成（shape drawable + SVG 导出 + Vector Drawable） | ✅ |
 | 2 | project_scan（扫描项目已有资源/组件） | 待做 |
 | 3 | MCP Server（给 VS Code 用） | 待做 |
 | 4 | Adapter 生成（可选） | 待做 |
+
+### Phase 2 设计笔记：project_scan
+
+**使用场景**：Phase 3 MCP Server 阶段，Agent（Claude Code / Copilot 等）在 VS Code 中工作，需要引用项目已有资源而非写死值。
+
+**扫描范围（3 层）**：
+1. **目标 module**：用户指定的、或 Agent 根据上下文推断的当前 module。Agent 通常知道自己在哪个 module——当前编辑的文件、上下文引用的文件都能提供线索。
+2. **依赖的内部 module**：解析目标 module 的 `build.gradle`，找 `implementation project(':xxx')` 引用的同项目 module，扫描它们的 `res/`。
+3. **不扫描外部依赖**：三方库的资源不可控，不纳入匹配范围。
+
+**扫描内容**：
+- `res/values/colors.xml` → 颜色名+值，按 hex 值匹配
+- `res/values/strings.xml` → 字符串名+值（用于判断是否有现成文案）
+- `res/values/dimens.xml` → 尺寸名+值
+- `res/values/styles.xml` / `themes.xml` → 已有样式
+- `res/drawable/` → 已有 shape/vector drawable，按视觉特征匹配（颜色+形状+圆角）
+- 自定义 View 类 → 按类名识别（如 `CompactSwitchCompat`、`RoundImageView`）
+
+**输出模式切换**：
+- Phase 1（当前）：所有值写死，即复即用
+- Phase 2+：匹配到已有资源 → 引用（`@color/primary`），未匹配 → 创建到目标 module 的 `res/` 对应文件中
+
+**关键设计决策（待定）**：
+- 颜色匹配：完全相同的 hex 才算匹配？还是近似色也算？（建议：严格匹配 hex，近似提示但不自动引用）
+- 新建资源的命名规范：跟随项目已有命名风格？还是用固定前缀？
+- 多 flavor / buildType 的资源覆盖如何处理？
