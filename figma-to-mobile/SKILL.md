@@ -95,9 +95,14 @@ After user confirms (or if no questions needed), generate code files.
 - **Colors**: write hex directly (`android:textColor="#0F0F0F"` / `Color(0xFF0F0F0F)`)
 - **Strings**: write text directly (`android:text="通知设置"`)
 - **Dimensions**: write values directly (`android:textSize="17sp"`)
-- **Images**: use `@drawable/placeholder` or `Image("placeholder")`
 - **Lists**: output main layout + separate item layout file. Do NOT generate Adapter/ViewHolder.
 - **No resource references**: no `@color/`, `@string/`, `@dimen/` — everything hardcoded for instant preview
+
+**Drawable resources — generate, don't placeholder:**
+- **Shape drawables** (backgrounds, outlines, tracks): Generate the actual XML shape drawable code based on Figma data (color, cornerRadius, stroke, gradient). Output each as a separate file with `📄 drawable/filename.xml` header.
+- **Icons/vectors**: Use `figma_fetch.py --export-svg <node-ids>` to export SVG from Figma API, then convert to Android Vector Drawable XML. The simplified JSON includes an `"id"` field on every node — use these IDs for export. Output each as `📄 drawable/ic_name.xml`.
+- **Photos/bitmaps**: These cannot be generated — use `@drawable/placeholder` and note what image is needed.
+- **Goal**: The generated code should be copy-pasteable and immediately render a close approximation of the design, not a blank screen with placeholders.
 
 **Platform guidelines (the agent already knows these — this is a reminder to follow them strictly):**
 - **Android XML**: Material Design 3. ConstraintLayout as default for any non-trivial layout. 8dp grid. Min touch target 48dp. MaterialCardView/MaterialSwitch over legacy.

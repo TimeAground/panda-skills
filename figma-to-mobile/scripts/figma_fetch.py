@@ -88,6 +88,7 @@ def simplify_node(node: dict, parent_pos: dict = None) -> dict:
     bbox = node.get("absoluteBoundingBox", {})
     node_type = node.get("type")
     result = {
+        "id": node.get("id"),
         "type": node_type,
         "name": node.get("name"),
         "width": bbox.get("width"),
@@ -239,17 +240,49 @@ def fetch_node(file_key: str, node_id: str, token: str, depth: int = 5) -> dict:
     return document
 
 
+def export_svgs(file_key: str, node_ids: list, token: str) -> dict:
+    """Export nodes as SVG via Figma API. Returns {node_id: svg_string}."""
+    ids_param = ",".join(node_ids)
+    url = f"https://api.figma.com/v1/images/{file_key}?ids={ids_param}&format=svg"
+    headers = {"X-Figma-Token": token}
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    results = {}
+    images = data.get("images", {})
+    for nid, svg_url in images.items():
+        if svg_url:
+            try:
+                svg_resp = requests.get(svg_url, timeout=30)
+                svg_resp.raise_for_status()
+                results[nid] = svg_resp.text
+            except Exception as e:
+                print(f"Warning: failed to download SVG for {nid}: {e}", file=sys.stderr)
+                results[nid] = None
+        else:
+            results[nid] = None
+    return results
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python figma_fetch.py <figma_url> [--depth N]")
+        print("Usage: python figma_fetch.py <figma_url> [--depth N] [--export-svg id1,id2,...]")
         print("Example: python figma_fetch.py 'https://www.figma.com/design/ABC/Project?node-id=100-200'")
+        print("Export:  python figma_fetch.py 'https://...?node-id=...' --export-svg 24249:6824,24249:6827")
         sys.exit(1)
 
     url = sys.argv[1]
     depth = 5
+    export_ids = None
+
     if "--depth" in sys.argv:
         idx = sys.argv.index("--depth")
         depth = int(sys.argv[idx + 1])
+
+    if "--export-svg" in sys.argv:
+        idx = sys.argv.index("--export-svg")
+        export_ids = sys.argv[idx + 1].split(",")
 
     token = os.environ.get("FIGMA_TOKEN")
     if not token:
@@ -261,6 +294,15 @@ def main():
     if not file_key:
         print(f"ERROR: Could not parse Figma URL: {url}")
         sys.exit(1)
+
+    # SVG export mode
+    if export_ids:
+        print(f"Exporting {len(export_ids)} node(s) as SVG...", file=sys.stderr)
+        svgs = export_svgs(file_key, export_ids, token)
+        print(json.dumps(svgs, indent=2, ensure_ascii=False))
+        return
+
+    # Normal fetch mode
     if not node_id:
         print("ERROR: URL must contain a node-id parameter.")
         print("Open a specific frame in Figma and copy the URL.")
