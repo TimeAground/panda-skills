@@ -309,6 +309,26 @@ Key constraint patterns:
 - Figma px → Android dp (1:1)
 - Figma font px → Android sp (1:1)
 
+## Width Strategy — Fixed vs match_parent
+
+Figma 设计稿通常基于 375px 宽画布。将元素宽度转换为 Android 属性时，需要判断设计意图：
+
+**用 `match_parent` + `marginHorizontal`（撑满减边距）：**
+- 元素宽度 + 左右偏移 ≈ 屏幕宽度（375），且左右边距对称或近似对称
+- 例：宽 335 + 左 20 = 355，右边也是 20 → `match_parent` + `android:layout_marginHorizontal="20dp"`
+- 例：宽 334 + 左 21 ≈ 右 20 → 近似对称 → 同理
+- **经验阈值**：元素宽度占屏幕 >85%（约 >320/375）且左右边距近似对称 → 优先用 `match_parent` + margin
+- 适配优势：不同屏幕宽度下自动拉伸，不会出现左右留白不均
+
+**用固定宽度 + 居中约束：**
+- 元素明显比屏幕窄，且居中放置
+- 例：宽 295 居中在 375 里 → `android:layout_width="295dp"` + `constraintStart/End` 居中
+- 适用于输入框、小卡片等不需要撑满屏幕的元素
+
+**RecyclerView item 宽度：**
+- item 布局始终用 `match_parent`，宽度由 RecyclerView 本身控制
+- RecyclerView 自身的宽度按上述规则判断
+
 ## Shadow Mapping
 
 ```xml
