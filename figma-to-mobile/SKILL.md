@@ -51,7 +51,7 @@ When user provides a Figma link:
 - **RECTANGLE as background**: When a GROUP's first child is a RECTANGLE matching the GROUP's dimensions, it's a background shape, not a separate view
 - **GROUP vs FRAME**: FRAME with `layoutMode` maps to structured layouts (LinearLayout, HStack, etc.); GROUP without `layoutMode` uses absolute positioning — map to ConstraintLayout constraints or explicit offsets
 - **Round Figma decimals**: Round dp to nearest integer, sp to nearest 0.5. Snap near-standard values (e.g., 47.99 → 48dp)
-- **Width strategy**: When an element's width + left/right offsets ≈ screen width (375) with symmetric margins, use `match_parent` + `marginHorizontal` instead of fixed width. Use fixed width only for elements clearly narrower than the screen and centered. See xml-patterns.md "Width Strategy" for details.
+- **Width strategy**: Don't blindly copy Figma width values — infer design intent. Elements spanning near-full screen width → `match_parent` + `marginHorizontal`. In side-by-side layouts, identify the "flexible" element (text/content) vs "fixed" element (icon/avatar) and use `0dp` + constraints for the flexible one. See xml-patterns.md "Width Strategy" for full rules.
 
 **Page architecture analysis (Android XML specific):**
 - Multiple tab labels → likely `TabLayout` + `ViewPager2`, content in Fragment layouts (strong signal, not absolute — ask if unsure)

@@ -309,23 +309,40 @@ Key constraint patterns:
 - Figma px → Android dp (1:1)
 - Figma font px → Android sp (1:1)
 
-## Width Strategy — Fixed vs match_parent
+## Width Strategy — Fixed vs Flexible
 
-Figma 设计稿通常基于 375px 宽画布。将元素宽度转换为 Android 属性时，需要判断设计意图：
+Figma 设计稿通常基于 375px 宽画布。Figma 里的宽度值是**计算结果**，不是设计意图。需要反推意图来决定 Android 属性。
 
-**用 `match_parent` + `marginHorizontal`（撑满减边距）：**
-- 元素宽度 + 左右偏移 ≈ 屏幕宽度（375），且左右边距对称或近似对称
-- 例：宽 335 + 左 20 = 355，右边也是 20 → `match_parent` + `android:layout_marginHorizontal="20dp"`
-- 例：宽 334 + 左 21 ≈ 右 20 → 近似对称 → 同理
-- **经验阈值**：元素宽度占屏幕 >85%（约 >320/375）且左右边距近似对称 → 优先用 `match_parent` + margin
-- 适配优势：不同屏幕宽度下自动拉伸，不会出现左右留白不均
+核心问题：**这个元素的宽度是"固定尺寸"还是"填满剩余空间"？**
 
-**用固定宽度 + 居中约束：**
-- 元素明显比屏幕窄，且居中放置
-- 例：宽 295 居中在 375 里 → `android:layout_width="295dp"` + `constraintStart/End` 居中
-- 适用于输入框、小卡片等不需要撑满屏幕的元素
+### 规则 1：单个元素撑满屏幕宽度
+元素宽度 + 左右偏移 ≈ 屏幕宽度（375），且左右边距对称或近似对称 → `match_parent` + `marginHorizontal`
 
-**RecyclerView item 宽度：**
+- 例：宽 335 + 左 20 + 右 20 = 375 → `match_parent` + `marginHorizontal="20dp"`
+- **经验阈值**：宽度占屏幕 >85% 且左右边距近似对称 → 优先 `match_parent` + margin
+- 适配优势：不同屏幕宽度下自动拉伸
+
+### 规则 2：并排元素中识别"弹性方"
+多个元素横向排列时，判断每个元素是**固定方**还是**弹性方**：
+
+- **固定方**：有明确视觉尺寸的元素——头像、图标、按钮、固定宽度标签等。用固定 dp 值。
+- **弹性方**：宽度 = 屏幕宽 - 固定方宽度 - 各间距的元素——通常是文本、描述、内容区域。用 `0dp`（match_constraints）+ 约束填满剩余空间。
+
+判断方法：计算 `固定方宽度 + 弹性方宽度 + 所有间距 ≈ 屏幕宽度` 是否成立。如果成立，弹性方不应写死宽度。
+
+- 例：头像 56dp + 间距 16dp + 文本 263dp + 右边距 20dp + 左边距 20dp = 375
+  → 头像是固定方（56dp），文本是弹性方
+  → 文本：`layout_width="0dp"` + `constraintStart_toEndOf="@id/ivAvatar"` + `constraintEnd_toEndOf="parent"` + `marginStart="16dp"` + `marginEnd="20dp"`
+- 例：标签 "姓名" 40dp + 间距 12dp + 输入框 283dp + 右边距 20dp + 左边距 20dp = 375
+  → 标签固定，输入框弹性
+
+### 规则 3：固定宽度 + 居中
+元素明显比屏幕窄，且居中放置，不靠左右边缘 → 固定宽度 + 居中约束
+
+- 例：宽 295 居中在 375 里 → `layout_width="295dp"` + `constraintStart/End` 居中
+- 适用于输入框、小卡片等独立居中的元素
+
+### RecyclerView item 宽度
 - item 布局始终用 `match_parent`，宽度由 RecyclerView 本身控制
 - RecyclerView 自身的宽度按上述规则判断
 
