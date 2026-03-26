@@ -45,6 +45,7 @@ When user provides a Figma link:
 
 **Figma node interpretation (apply before generating any platform code):**
 - **Skip system chrome**: StatusBar, HomeIndicator, NavigationBar are iOS design placeholders — don't generate code for them. Also skip duplicate nodes at the same position (Figma artifacts)
+- **Skip invisible nodes**: VECTOR/RECTANGLE with empty fills and all strokes `visible: false`, or `absoluteRenderBounds: null` — these are leftover design artifacts that render nothing
 - **Container + icon = single view**: A FRAME (with background/cornerRadius) wrapping a small VECTOR/INSTANCE is one ImageView/Image, not nested layouts
 - **VECTOR/ELLIPSE compositions = single asset**: Multiple small VECTOR/ELLIPSE siblings inside a FRAME are pieces of one icon — output as a single image reference, not separate views
 - **RECTANGLE as background**: When a GROUP's first child is a RECTANGLE matching the GROUP's dimensions, it's a background shape, not a separate view

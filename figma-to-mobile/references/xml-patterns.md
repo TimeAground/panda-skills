@@ -184,6 +184,13 @@ Nodes representing **iOS system chrome** should NOT generate Android code:
 - Signal: INSTANCE nodes with names like "StatusBar", "HomeIndicator", or with well-known component IDs that appear at screen top (y≈0) or bottom (y≈screen height - small offset)
 - Also skip **duplicate nodes** — if the same component appears twice at the same position, only one is real (Figma artifact)
 
+### Invisible Nodes — Skip
+Nodes that exist in the tree but render nothing should NOT generate views:
+- **VECTOR with empty fills + invisible strokes**: `fills: []` and all strokes have `visible: false` → the node is effectively invisible
+- **`absoluteRenderBounds: null`**: Figma returns null when the node has no rendered output — always skip
+- These are often leftover elements from earlier design iterations that the designer forgot to delete
+- Note: this is different from `visible: false` on the node itself (which `figma_fetch.py` already filters out)
+
 ### Container + Icon = Single ImageView
 When data shows a **FRAME** (with background color + cornerRadius) containing a single **INSTANCE** or **VECTOR** child that is clearly an icon:
 - This is one `ImageView` in code, not a nested layout
