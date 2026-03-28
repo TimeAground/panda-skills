@@ -26,10 +26,10 @@ def parse_figma_url(url: str):
 
 def rgba_to_hex(color: dict) -> str:
     """Convert Figma RGBA (0-1) to hex #RRGGBB or #AARRGGBB."""
-    r = int(color.get("r", 0) * 255)
-    g = int(color.get("g", 0) * 255)
-    b = int(color.get("b", 0) * 255)
-    a = int(color.get("a", 1) * 255)
+    r = round(color.get("r", 0) * 255)
+    g = round(color.get("g", 0) * 255)
+    b = round(color.get("b", 0) * 255)
+    a = round(color.get("a", 1) * 255)
     if a == 255:
         return f"#{r:02X}{g:02X}{b:02X}"
     return f"#{a:02X}{r:02X}{g:02X}{b:02X}"
